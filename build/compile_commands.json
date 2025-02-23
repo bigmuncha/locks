@@ -1,0 +1,8 @@
+[
+{
+  "directory": "/home/omardesktop/some_shit/lock_free_lib/build/tests",
+  "command": "/usr/bin/clang++  -I/home/omardesktop/some_shit/lock_free_lib/primitives -I/home/omardesktop/some_shit/lock_free_lib/primitives/include -std=gnu++23 -O2 -g -o CMakeFiles/my_tests.dir/test.cpp.o -c /home/omardesktop/some_shit/lock_free_lib/tests/test.cpp",
+  "file": "/home/omardesktop/some_shit/lock_free_lib/tests/test.cpp",
+  "output": "tests/CMakeFiles/my_tests.dir/test.cpp.o"
+}
+]
