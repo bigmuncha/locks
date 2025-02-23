@@ -6,55 +6,36 @@
 static bool testPASS() { return true; }
 static bool testFAIL() { return false; }
 
-
-void testLockInterference()
-{
-    //std::cout <<" start empty\n";
-    MCSspinlock lock;
-    std::atomic<bool> flag = 0;
-    lock.lock();
-
-    std::thread t([&flag, &lock](){
-	flag.store(1);
-	lock.lock();
-	lock.unlock();
-    });
-    while(flag == 0) {
-    };
-    lock.unlock();
-    t.join();
-    //lock.checkEmpty();
-    //std::cout << "TEST INTERFERENCE REUSE\n";
-}
 #include <github_mcs.hpp>
 
-void testLockInterferenceGithub()
+template <typename spinType>
+int testLockInterference(spinType& spinner)
 {
-    //std::cout <<" start GITHUB\n";
-    GithubMCS lock;
-    std::atomic<bool> flag = 0;
-    lock.lock();
 
-    std::thread t([&flag, &lock](){
+    std::atomic<bool> flag = 0;
+    spinner.lock();
+
+    std::thread t([&flag, &spinner](){
 	flag.store(1);
-	lock.lock();
-	lock.unlock();
+	flag.notify_one();
+	spinner.lock();
+	spinner.unlock();
     });
-    while(flag == 0) {
-    };
-    lock.unlock();
+    flag.wait(false);
+    spinner.unlock();
     t.join();
+    return flag;
 }
+
 
 void testLockREUSE()
 {
-    MCSspinlock lock{};
+    ErrorMyImplementation lock{};
     int thread1;
     lock.lock();
     lock.unlock();
     lock.lock();
     lock.unlock();
-    lock.checkEmpty();
     std::cout << "TEST PASS REUSE\n";
 }
 
@@ -63,7 +44,7 @@ void testLockREUSE()
 void testLock10()
 {
     static constexpr int operation_num = 2000;
-    MCSspinlock lock{};
+    ErrorMyImplementation lock{};
 
     volatile unsigned int current_num = 0;
     std::array<std::thread, 10> thread_arr;
@@ -99,21 +80,24 @@ void testLock10()
     std::cout << "TEST PASS\n";
 }
 
-void RUNTESTS()
+int RUNTESTS()
 {
     assert(testPASS() == true);
     assert(testFAIL() == false);
-    testLockREUSE();
-    for(int i =0; i < 1000; i++)
+    //testLockREUSE();
+    int* flag  = new int;
+    for(int i = 0; i < 1000; i++)
     {
-	testLockInterference();
+	WorkingGithubImplementation lock;
+	*flag += testLockInterference(lock);
     }
-    for(int i =0; i < 1000; i++)
+    std::cout << "NEW TEST START";
+    for( int i=0; i < 1000; i++)
     {
-	testLockInterferenceGithub();
+	ErrorMyImplementation lock;
+	*flag+= testLockInterference(lock);
     }
-    //testLockInterference();
-    //testLock10();
+    return *flag;
 }
 
 

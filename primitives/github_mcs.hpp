@@ -34,11 +34,14 @@
 
 #ifndef MCSSPINLOCK_H_
 #define MCSSPINLOCK_H_
-struct MCSNode {
+#include <atomic>
+#include <thread>
+#include <iostream>
+class WorkingGithubImplementation {
+    struct MCSNode {
     bool waiting_;
     MCSNode *next_;
 };
-class GithubMCS {
 public:
     [[gnu::noinline]] void lock() {
         MCSNode *tls_node = get_tls_node();
@@ -57,11 +60,12 @@ public:
     }
     [[gnu::noinline]] void unlock() {
         MEM_BARRIER();
-        MCSNode *tls_node = get_tls_node();
+        MCSNode *const tls_node = get_tls_node();
         if (tls_node->next_==nullptr) {
             if (CAS(&gnode_, tls_node, nullptr)) {
                 return;
             }
+	    std::cout << "cas error no deadlock"<< std::endl;
             while (!ATOMIC_LOAD(&tls_node->next_)) {
                 PAUSE();
             }
@@ -70,8 +74,19 @@ public:
     }
 private:
     MCSNode* gnode_ = nullptr;
+    std::atomic<int> flager{};
     MCSNode *get_tls_node() {
         static __thread MCSNode tls_node;
+	if(flager == 0)
+	{
+	    ++flager;
+	    //std::cout << " node 1 address: " << &tls_node << " thread is "<< std::this_thread::get_id() <<std::endl;
+	}
+	else if(flager == 1)
+	{
+	    ++flager;
+	    //    std::cout << " node 2 address: " << &tls_node <<  " thread is "<< std::this_thread::get_id() <<std::endl;
+	}
         return &tls_node;
     }
 };

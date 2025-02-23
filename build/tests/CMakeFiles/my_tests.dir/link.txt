@@ -1,1 +1,0 @@
-/usr/bin/clang++ CMakeFiles/my_tests.dir/test.cpp.o -o my_tests

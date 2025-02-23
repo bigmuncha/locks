@@ -1,6 +1,9 @@
 #include <atomic>
 #include <iostream>
 #include <vector>
+#include <cassert>
+#include <map>
+#include <thread>
 
 #define COMPILER_BARRIER() __asm__ __volatile__("" : : : "memory")
 #define MEM_BARRIER() __sync_synchronize()
@@ -17,54 +20,32 @@
 #define CACHE_ALIGN_SIZE 64
 #define CACHE_ALIGNED __attribute__((aligned(CACHE_ALIGN_SIZE)))
 
-struct qnode
+class ErrorMyImplementation
 {
-    std::atomic<qnode*> next;
-    std::atomic<bool> locked;
-};
-
-using  MSCLock = std::atomic<qnode*>;
-
-static void release_lock_no_cas(MSCLock &L, qnode* I)
-{
-    if(I->next.load() == nullptr)
+    struct qnode
     {
-	auto old_tail = L.exchange(nullptr);
-	if(old_tail == I) 
-	{
-	    return;
-	}
-	auto usurper = L.exchange(old_tail);
-	while(I->next.load() == nullptr)
-	{
-	    //SPIN
-	}
-	if(usurper != nullptr)
-	{
-	    usurper->next.store(I->next.load());
-	}
-	else
-	{
-	    I->next.load()->locked.store(false);
-	}
-    }
-    else
-	I->next.load()->locked.store(false);
-}
+	std::atomic<qnode*> next;
+	std::atomic<bool> locked;
+    };
 
+    using  MSCLock = std::atomic<qnode*>;
 
-class MCSspinlock
-{
 public:
     [[gnu::noinline]]void lock()	{
-	    auto node = getThreadLocalNode();
+	    qnode* const node = getThreadLocalNode();
+	    //sanity_check(node);
 	    node->next = nullptr;
-	    auto predecessor = L.exchange(node, std::memory_order_acquire);
+	    qnode* predecessor = L.exchange(node);
+	    //sanity_check(node);
 	    if(predecessor == nullptr) //somebody acquire this lock
 		return;
-	    node->locked.store(true, std::memory_order_relaxed);
-	    predecessor->next.store(node, std::memory_order_release);
-	    while(node->locked.load(std::memory_order_acquire))
+	    //sanity_check(node);
+	    //std::cout << "have_predecessor deadlock"<< std::endl;
+	    node->locked.store(true);
+	    //sanity_check(node);
+	    predecessor->next.store(node);
+	    //sanity_check(node);
+	    while(node->locked.load() == true)
 	    {
 		PAUSE();
 	    }
@@ -72,36 +53,86 @@ public:
 
     [[gnu::noinline]] void unlock()
 	{
-	    auto node = getThreadLocalNode();
-	    if(node->next.load(std::memory_order_relaxed) == nullptr) // no known successor
+
+	    qnode* node = getThreadLocalNode();
+	    auto cmpxch_pointer = node;
+	    //sanity_check(node);
+	    if(node->next.load() == nullptr) // no known successor
 	    {
-		if(L.compare_exchange_strong(node,nullptr, std::memory_order_release))
+		if(L.compare_exchange_strong(cmpxch_pointer,nullptr))
+		{
+		    //sanity_check(node);
+		    // std::cout << "cas successed deadlock"<< std::endl;
 		    return;
-		while(node->next.load(std::memory_order_acquire) == nullptr)
+		}
+		//std::cout << "cas error deadlock"<< std::endl;
+		while(node->next.load() == nullptr)
 		{
 		    PAUSE();
 		}
+
 	    }
-	    node->next.load()->locked.store(0, std::memory_order_release);
+	    //sanity_check(node);
+	    node->next.load()->locked.store(0);
 	}
-    bool checkEmpty()
+    void sanity_check(qnode * noda)
 	{
-	    auto queue = L.load();
-	    int res = 0;
-	    while(queue)
+	    if(thread_local_holder.size() == 2)
 	    {
-		res = 1;
-		std::cout <<"NOT EMPTY " << " locked? " << (int)queue->locked;
-		queue = queue->next.load();
+		auto first_thread = thread_local_holder.begin();
+		auto second_thread = thread_local_holder.rbegin();
+		assert(first_thread->first != second_thread->first);
+		assert(first_thread->second != second_thread->second);
+		auto index = std::this_thread::get_id();
+		assert(thread_local_holder[index] == noda);
+		std::cout <<"success check\n";
 	    }
-	    std::cout << "queue empty" << std::endl;
-	     return res;
+	}
+
+    ~ErrorMyImplementation()
+	{
+	    for(auto &node: thread_local_holder)
+	    {
+		delete node.second;
+	    }
 	}
 private:
     MSCLock L{};
+    std::atomic<int> flager{};
+    std::map<std::thread::id, qnode*> thread_local_holder{};
+    /* qnode* getThreadLocalNode() */
+    /* 	{ */
+    /* 	    auto index = std::this_thread::get_id(); */
+    /* 	    auto iter = thread_local_holder.find(index); */
+    /* 	    if(iter != thread_local_holder.end()) */
+    /* 	    { */
+    /* 		return iter->second; */
+    /* 	    } */
+    /* 	    else */
+    /* 	    { */
+    /* 		qnode* node = new qnode; */
+    /* 		node->locked.store(0); */
+    /* 		node->next.store(nullptr); */
+    /* 		//std::cout << "thread id is: " << index << " new node address: " << node << std::endl; */
+    /* 		thread_local_holder.insert({index, node}); */
+    /* 		return node; */
+    /* 	    } */
+    /* 	} */
     qnode* getThreadLocalNode()
 	{
-	    static __thread qnode thread_holder;
+	    static thread_local qnode thread_holder;
+	    //std::atomic<qnode*> addres_of = &thread_holder;
+	    if(flager == 0)
+	    {
+		++flager;
+		//std::cout << " node 1 address: "<< &thread_holder<< " thread is "<< std::this_thread::get_id() <<std::endl;
+	    }
+	    else if(flager == 1)
+	    {
+		++flager;
+		//std::cout << " node 2 address: " << &thread_holder << " thread is "<< std::this_thread::get_id() <<std::endl;
+	    }
 	    return &thread_holder;
 	}
+
 };

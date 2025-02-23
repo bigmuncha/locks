@@ -6,7 +6,7 @@ project ("CMakeProject"
 set(CMAKE_CXX_STANDARD 23)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-list(APPEND CFLAGS "-O2")
+list(APPEND CFLAGS "-O0")
 list(APPEND CFLAGS "-g")
 #list(APPEND CFLAGS "-fsanitize=undefined")
 #SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=undefined") 

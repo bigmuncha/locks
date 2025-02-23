@@ -1,2 +1,0 @@
-/usr/bin/ar qc libprimitives.a
-/usr/bin/ranlib libprimitives.a
