@@ -8,6 +8,71 @@ static bool testFAIL() { return false; }
 
 #include <github_mcs.hpp>
 
+
+void testTwoLocks()
+{
+    std::cout << "TEST PASS 2locks start\n";
+    MCSspinLock lock1;
+    MCSspinLock lock2;
+    lock1.lock();
+    lock2.lock();
+    lock1.unlock();
+    lock2.unlock();
+    std::cout << "TEST PASS 2locks\n";
+}
+
+class classWithSpinlock
+{
+    SPINLOCK_DEFINE(spin1);
+public:
+
+    void make_work()
+	{
+	    ACQUIRE_LOCK(spin1);
+	    RELEASE_LOCK(spin1);
+	}
+    void* getId()
+	{
+	    return THREAD_LOCAL_ADDRESS(spin1);
+	}
+};
+
+void testSpinInClass()
+{
+    classWithSpinlock class1;
+    classWithSpinlock class2;
+    class1.make_work();
+    class2.make_work();
+    std::cout <<"first class spin addr"<< class1.getId() << '\n';
+    std::cout <<"second class spin addr"<< class2.getId() << '\n';
+};
+void testTwoLocksMACRO()
+{
+    std::cout << "TEST PASS 2locks MACRO start\n";
+    {
+
+	SPINLOCK_DEFINE(spin1);
+	SPINLOCK_DEFINE(spin2);
+	ACQUIRE_LOCK(spin1);
+	ACQUIRE_LOCK(spin2);
+	std::cout <<"first spin addr"<< THREAD_LOCAL_ADDRESS(spin1) << '\n';
+	std::cout <<"second spin addr"<< THREAD_LOCAL_ADDRESS(spin2) << '\n';
+	RELEASE_LOCK(spin1);
+	RELEASE_LOCK(spin2);
+    }
+    {
+	SPINLOCK_DEFINE(spin1);
+	SPINLOCK_DEFINE(spin2);
+	ACQUIRE_LOCK(spin1);
+	ACQUIRE_LOCK(spin2);
+	std::cout <<"first spin addr"<< THREAD_LOCAL_ADDRESS(spin1) << '\n';
+	std::cout <<"second spin addr"<< THREAD_LOCAL_ADDRESS(spin2) << '\n';
+	RELEASE_LOCK(spin1);
+	RELEASE_LOCK(spin2);
+    }
+    std::cout << "TEST PASS 2locks macro\n";
+}
+
 template <typename spinType>
 int testLockInterference(spinType& spinner)
 {
@@ -30,7 +95,7 @@ int testLockInterference(spinType& spinner)
 
 void testLockREUSE()
 {
-    ErrorMyImplementation lock{};
+    MCSspinLock lock{};
     int thread1;
     lock.lock();
     lock.unlock();
@@ -44,7 +109,7 @@ void testLockREUSE()
 void testLock10()
 {
     static constexpr int operation_num = 2000;
-    ErrorMyImplementation lock{};
+    MCSspinLock lock{};
 
     volatile unsigned int current_num = 0;
     std::array<std::thread, 10> thread_arr;
@@ -84,19 +149,20 @@ int RUNTESTS()
 {
     assert(testPASS() == true);
     assert(testFAIL() == false);
-    //testLockREUSE();
+    testLockREUSE();
+    testTwoLocks();
+
     int* flag  = new int;
-    for(int i = 0; i < 1000; i++)
-    {
-	WorkingGithubImplementation lock;
-	*flag += testLockInterference(lock);
-    }
     std::cout << "NEW TEST START";
     for( int i=0; i < 1000; i++)
     {
-	ErrorMyImplementation lock;
+	MCSspinLock lock;
 	*flag+= testLockInterference(lock);
     }
+
+    testTwoLocks();
+    testTwoLocksMACRO();
+    testSpinInClass();
     return *flag;
 }
 
