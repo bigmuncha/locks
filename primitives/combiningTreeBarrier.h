@@ -1,5 +1,7 @@
 #include <atomic>
 #include <array>
+#include <vector>
+// less contantion on barrier
 
 template <int procCount>
 class combiningBarrier
@@ -17,12 +19,12 @@ public:
 
     combiningBarrier()
     {
-	arr[0].parent = nullptr;
-	for(int i =1 ; i < procCount; i++)
+	//create tree structure(heap)
+	for(int i=0; i < procCount; i++)
 	{
-	    arr[i].k = 1;
-	    arr[i].parent = arr[i-1];
+	    array.push_back({ new qnode});
 	}
+	for(int i = 1; i < procCount; i+=2)
     }
 
     void barrier()
@@ -34,7 +36,6 @@ public:
 private:
     void waitAll(qnode* noda, bool sense)
     {
-	
     }
-    std::array<qnode, procCount> arr;
+    std::vector<qnode*> array;
 };
