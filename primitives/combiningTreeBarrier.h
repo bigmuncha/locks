@@ -25,6 +25,12 @@ public:
 	    array.push_back({ new qnode});
 	}
 	for(int i = 1; i < procCount; i+=2)
+	{
+	    auto new_arr = {new qnode};
+	    array.push_back(new_arr);
+	    array[i-1]->parent = new_arr;
+	    array[i]->parent = new_arr;
+	}
     }
 
     void barrier()

@@ -6,7 +6,7 @@ project(my_tests)
 include_directories(${MY_HEADERS_DIR})
 #include_directories(lib/googletest/googletest/include)
 
-set(SOURCE_FILES test.cpp)
+file(GLOB SOURCE_FILES ./*.cpp)
 
 add_executable(my_tests ${SOURCE_FILES})
 target_compile_options(my_tests  

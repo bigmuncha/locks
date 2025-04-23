@@ -4,6 +4,7 @@
 #include <thread>
 #include <plainBarrier.h>
 #include <chrono>
+#include "test_lock_free_vector.h"
 
 static bool testPASS() { return true; }
 static bool testFAIL() { return false; }
@@ -222,6 +223,7 @@ int RUNTESTS()
     testTwoLocksMACRO();
     testSpinInClass();
     testBarrier();
+    lcvector::makeLockFreeTest();
     return *flag;
 }
 
