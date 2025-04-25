@@ -27,7 +27,7 @@ class vectorLF
 	T oldValue;
 	T newValue;
 	int pos;
-	bool completed;
+        bool completed;
     };
 
     struct Descriptor
@@ -164,11 +164,15 @@ public:
     void completeWrite(std::atomic<WriteDescriptor*>& wd)
 	{
 	    WriteDescriptor* wd_ptr = wd.load();
-	    if(wd_ptr != nullptr && wd_ptr->completed == false)
+	    if(wd_ptr != nullptr)
 	    {
-		std::atomic_ref<T> position = at(wd_ptr->pos);
-		position.compare_exchange_weak(wd_ptr->oldValue, wd_ptr->newValue);
-		wd_ptr->completed = true;
+		auto completed = std::atomic_ref(wd_ptr->completed);
+		if(completed.load(std::memory_order_relaxed) == false)
+		{
+		    std::atomic_ref<T> position = at(wd_ptr->pos);
+		    position.compare_exchange_weak(wd_ptr->oldValue, wd_ptr->newValue);
+		    completed.store(true, std::memory_order_relaxed);
+		}
 	    }
 	}
 

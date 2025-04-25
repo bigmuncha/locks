@@ -71,7 +71,7 @@ TEST_CASE("testThreeThread")
 	flag_second.wait(true);
 	CHECK(lockFree.size() == 0);
     });
-    
+
     flag.wait(false);
     flag_second.wait(false);
     CHECK(lockFree.size() == 2);
@@ -97,10 +97,32 @@ TEST_CASE("fullness")
     }
     CHECK(lockFree.size() == 512);
 
-    for(int i =512; i >0; i--)
+    for(int i =511; i >0; i--)
     {
 	auto current = lockFree.popBack();
 	CHECK(current == i);
     }
 }
+
+TEST_CASE("Two thread append remove")
+{
+    // i expect that vector can be full for 8^3 == 512 elements
+    vectorLF<int,3> lockFree;
+    std::atomic_flag flag = {};
+    std::thread t([&flag, &lockFree](){
+	
+    });
+    for(int i=0; i < 512; i++)
+    {
+	lockFree.pushBack(i);
+    }
+    CHECK(lockFree.size() == 512);
+
+    for(int i =511; i >0; i--)
+    {
+	auto current = lockFree.popBack();
+	CHECK(current == i);
+    }
+}
+
 };
