@@ -137,7 +137,7 @@ public:
 private:
     MSCLock L{};
     std::atomic<int> flager{};
-   
+
     qnode* getThreadLocalNode()
 	{
 	    alignas(std::hardware_destructive_interference_size) thread_local qnode thread_holder; //avoid false sharing
