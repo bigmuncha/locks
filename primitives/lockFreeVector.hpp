@@ -154,7 +154,7 @@ public:
 	{
 	    thread_local Descriptor odd_descriptor;
 	    thread_local Descriptor even_descriptor;
-	    thread_local int flag;
+	    thread_local unsigned int flag;
 	    if((flag++) & 0x1)
 		return &odd_descriptor;
 	    else
