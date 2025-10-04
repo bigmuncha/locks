@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <assert.h>
+#include <vector>
 
 // this is refferrence implementation of
 // Lock-free Dynamically Resizable Arrays
@@ -18,7 +19,7 @@ static constexpr int highestBit(unsigned int val)
 
 static_assert(highestBit(8) == 3);
 
-template <typename T, int powFactor = 3>
+template <typename T, int powFactor = 3, int arenaSize = 256>
 requires ((sizeof(T)) <= 8) // this vector works only with atomic always lockfree types
 class vectorLF
 {
@@ -42,6 +43,8 @@ public:
 	    desc = &dummy;
 	    desc.load()->size = 0;
 	    desc.load()->writeop = nullptr;
+	    wdVect = std::vector<WriteDescriptor>(arenaSize);
+	    descriptorVect = std::vector<Descriptor>(arenaSize);
 	}
     ~vectorLF()
 	{
@@ -79,7 +82,11 @@ public:
 		    allocBucket(bucket);
 		}
 		auto oldval =  at(descriptor_current->size).load();
-		*(wd) = WriteDescriptor{oldval, elem, descriptor_current->size, false};
+		wd->oldValue = oldval;
+		wd->newValue = elem;
+		wd->pos = descriptor_current->size;
+		auto complete = std::atomic_ref(wd->completed);
+		complete.store(true, std::memory_order_release);
 		descriptor_next->size = descriptor_current->size + 1;
 		descriptor_next->writeop.store(wd);
 	    }while(desc.compare_exchange_strong(descriptor_current, descriptor_next));
@@ -104,7 +111,7 @@ public:
 	{
 	    Descriptor *descr = desc.load();
 	    int size = descr->size;
-	    if(descr->writeop && !descr->writeop.load()->completed)
+	    if(descr->writeop && descr->writeop.load()->completed)
 	    {
 		size = size - 1 ;
 	    }
@@ -167,19 +174,37 @@ public:
 	    if(wd_ptr != nullptr)
 	    {
 		auto completed = std::atomic_ref(wd_ptr->completed);
-		if(completed.load(std::memory_order_relaxed) == false)
+		if(completed.load(std::memory_order_acquire) == true)
 		{
 		    std::atomic_ref<T> position = at(wd_ptr->pos);
 		    position.compare_exchange_weak(wd_ptr->oldValue, wd_ptr->newValue);
-		    completed.store(true, std::memory_order_relaxed);
+		    completed.store(false, std::memory_order_relaxed);
 		}
 	    }
 	}
 
+    static constexpr unsigned int maxSize()
+	{
+	    int currentPower = powFactor;
+	    int currentBase = 1;
+	    int size = currentBase;
+	    for (int i =0; i< powFactor; i++)
+	    {
+		currentBase = currentBase << currentPower;
+		size += currentBase;
+	    }
+	    return size - 1;
+	}
 private:
     static constexpr int first_bucket_size = 1<< powFactor;
     std::atomic<Descriptor*> desc;
     Descriptor dummy;
     static_assert(std::atomic<Descriptor*>{}.is_always_lock_free);
     std::atomic<T*> memory[first_bucket_size];
+    std::vector<Descriptor> descriptorVect;
+    std::vector<WriteDescriptor> wdVect;
 };
+
+static_assert(vectorLF<int,4>::maxSize() == 69904);
+static_assert(vectorLF<int,3>::maxSize() == 584);
+static_assert(vectorLF<int,2>::maxSize() == 20);

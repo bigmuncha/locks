@@ -6,11 +6,6 @@ project ("CMakeProject"
 set(CMAKE_CXX_STANDARD 23)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-list(APPEND CFLAGS "-O0")
-list(APPEND CFLAGS "-g")
-#list(APPEND CFLAGS "-fsanitize=undefined")
-#SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=undefined") 
-#set(MY_INSTALL_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 set(MY_HEADERS_DIR ${PROJECT_SOURCE_DIR}/primitives/include)
 set(MY_INSTALL_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/primitives)
 

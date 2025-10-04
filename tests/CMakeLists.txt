@@ -9,8 +9,8 @@ include_directories(${MY_HEADERS_DIR})
 file(GLOB SOURCE_FILES ./*.cpp)
 
 add_executable(my_tests ${SOURCE_FILES})
-target_link_libraries(my_tests  -fsanitize=thread)
-target_compile_options(my_tests PRIVATE ${CFLAGS} -fsanitize=thread doctest)
+target_link_libraries(my_tests  -g -O3)
+target_compile_options(my_tests PRIVATE ${CFLAGS} doctest -g -O3)
 
 install(TARGETS my_tests DESTINATION bin)
 

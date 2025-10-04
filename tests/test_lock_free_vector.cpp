@@ -2,8 +2,6 @@
 #include <thread>
 #include "doctest/doctest/doctest.h"
 
-namespace lcvector{
-
 TEST_CASE("test push vector")
 {
     vectorLF<int> lockFree;
@@ -91,13 +89,14 @@ TEST_CASE("fullness")
 {
     // i expect that vector can be full for 8^3 == 512 elements
     vectorLF<int,3> lockFree;
-    for(int i=0; i < 512; i++)
+    auto maxsize = lockFree.maxSize();
+    for(int i=0; i < maxsize; i++)
     {
 	lockFree.pushBack(i);
     }
-    CHECK(lockFree.size() == 512);
+    CHECK(lockFree.size() == maxsize);
 
-    for(int i =511; i >0; i--)
+    for(int i = maxsize - 1; i >0; i--)
     {
 	auto current = lockFree.popBack();
 	CHECK(current == i);
@@ -107,22 +106,25 @@ TEST_CASE("fullness")
 TEST_CASE("Two thread append remove")
 {
     // i expect that vector can be full for 8^3 == 512 elements
-    vectorLF<int,3> lockFree;
+    //for(int i =0; i )
+    vectorLF<int,4> lockFree;
     std::atomic_flag flag = {};
-    std::thread t([&flag, &lockFree](){
-	
+    auto maxSize = lockFree.maxSize();
+    std::thread t([&flag, &lockFree,&maxSize](){
+	flag.test_and_set();
+	flag.notify_one();
+	for(int i=0; i < maxSize/2; i++)
+	{
+	    lockFree.pushBack(i);
+	}
     });
-    for(int i=0; i < 512; i++)
+
+    flag.wait(false);
+    for(int i=0; i < maxSize/2; i++)
     {
 	lockFree.pushBack(i);
     }
-    CHECK(lockFree.size() == 512);
-
-    for(int i =511; i >0; i--)
-    {
-	auto current = lockFree.popBack();
-	CHECK(current == i);
-    }
+    t.join();
+    CHECK(lockFree.size() == maxSize);
 }
 
-};
